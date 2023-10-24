@@ -1,11 +1,475 @@
 ---
-title: "bahlemots.git.submission2"
+title: "Assignment 2: Descriptive Analysis of Sona Speeches 1994-2023"
+author: "Bahle Motshegoa (MTSNOB004)"
+date: last-modified
 ---
 
-This is a Quarto website.
+# Introduction
 
-To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
+The State of the Nation Address (SONA) delivered by the President of South Africa is a significant annual event. It serves as a platform for the nation's leader to engage with citizens, government officials, and international observers. This address offers a pivotal opportunity for the President to assess the nation's current state, articulate government priorities, and lay out policies and plans for the future. It represents a moment that encapsulates the nation's aspirations in politics, society, and the economy.
 
-```{r}
-1 + 1
+The primary goal is to conduct a comprehensive analysis of the speech content, aiming to detect evolving trends in sentiment and topics across time. This examination involves the application of sentiment analysis and topic modeling techniques. Specifically, we will employ the latent Dirichlet allocation (LDA) method for topic analysis. LDA is a widely adopted probabilistic model within the domains of machine learning and natural language processing. When LDA is harnessed for topic modeling, it excels at revealing concealed themes and patterns within extensive textual corpora. It achieves this by establishing connections between words and topics based on their co-occurrence tendencies. Meanwhile, sentiment analysis is focused on unveiling the emotional tone or "sentiment" conveyed within the text.
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse) 
+library(stringr) 
+library(lubridate) 
+library(tidytext) 
+library(readtext) 
+library(rpart)  
+library(quanteda)  
+library(kableExtra) 
+library(quanteda.textplots) 
+library(caret) 
+library(tm)
+library(magrittr)
+# library(splitTools) 
+# library(e1071) #for Naives bayes 
+# library(keras)
+# library(e1071) #for svm library(naivebayes) 
+library(textdata) 
+library(SnowballC)
+library(topicmodels)
+library(quanteda)
+# tensorflow::set_random_seed(5)  
 ```
+
+```{r data, echo=FALSE}
+data <- c()
+data[1] <-  readChar("data/1994_post_elections_Mandela.txt", nchars = 27050)
+data[2] <-  readChar("data/1994_pre_elections_deKlerk.txt", nchars = 12786)
+data[3] <-  readChar("data/1995_Mandela.txt", nchars = 39019)
+data[4] <-  readChar("data/1996_Mandela.txt", nchars = 39524)
+data[5] <-  readChar("data/1997_Mandela.txt", nchars = 37489)
+data[6] <-  readChar("data/1998_Mandela.txt", nchars = 45247)
+data[7] <-  readChar("data/1999_post_elections_Mandela.txt", nchars = 34674)
+data[8] <-  readChar("data/1999_pre_elections_Mandela.txt", nchars = 41225)
+data[9] <-  readChar("data/2000_Mbeki.txt", nchars = 37552)
+data[10] <- readChar("data/2001_Mbeki.txt", nchars = 41719)
+data[11] <- readChar("data/2002_Mbeki.txt", nchars = 50544)
+data[12] <- readChar("data/2003_Mbeki.txt", nchars = 58284)
+data[13] <- readChar("data/2004_post_elections_Mbeki.txt", nchars = 34590)
+data[14] <- readChar("data/2004_pre_elections_Mbeki.txt", nchars = 39232)
+data[15] <- readChar("data/2005_Mbeki.txt", nchars = 54635)
+data[16] <- readChar("data/2006_Mbeki.txt", nchars = 48643)
+data[17] <- readChar("data/2007_Mbeki.txt", nchars = 48641)
+data[18] <- readChar("data/2008_Mbeki.txt", nchars = 44907)
+data[19] <- readChar("data/2009_post_elections_Zuma.txt", nchars = 31101)
+data[20] <- readChar("data/2009_pre_elections_ Motlanthe.txt", nchars = 47157)
+data[21] <- readChar("data/2010_Zuma.txt", nchars = 26384)
+data[22] <- readChar("data/2011_Zuma.txt", nchars = 33281)
+data[23] <- readChar("data/2012_Zuma.txt", nchars = 33376)
+data[24] <- readChar("data/2013_Zuma.txt", nchars = 36006)
+data[25] <- readChar("data/2014_post_elections_Zuma.txt", nchars = 29403)
+data[26] <- readChar("data/2014_pre_elections_Zuma.txt", nchars = 36233)
+data[27] <- readChar("data/2015_Zuma.txt", nchars = 32860)
+data[28] <- readChar("data/2016_Zuma.txt", nchars = 32464)
+data[29] <- readChar("data/2017_Zuma.txt", nchars = 35981)
+data[30] <- readChar("data/2018_Ramaphosa.txt", nchars = 33290)
+data[31] <- readChar("data/2019_post_elections_Ramaphosa.txt", nchars = 42112)
+data[32] <- readChar("data/2019_pre_elections_Ramaphosa.txt", nchars = 56960)
+data[33] <- readChar("data/2020_Ramaphosa.txt", nchars = 47910)
+data[34] <- readChar("data/2021_Ramaphosa.txt", nchars = 43352)
+data[35] <- readChar("data/2022_Ramaphosa.txt", nchars = 52972)
+data[36] <- readChar("data/2023_Ramaphosa.txt", nchars = 52972)
+
+
+filenames <- c('1994_post_elections_Mandela.txt', '1994_pre_elections_deKlerk.txt', '1995_Mandela.txt', '1996_Mandela.txt', '1997_Mandela.txt', '1998_Mandela.txt', 
+               '1999_post_elections_Mandela.txt', '1999_pre_elections_Mandela.txt', '2000_Mbeki.txt', '2001_Mbeki.txt', '2002_Mbeki.txt', '2003_Mbeki.txt', 
+               '2004_post_elections_Mbeki.txt', '2004_pre_elections_Mbeki.txt', '2005_Mbeki.txt', '2006_Mbeki.txt', '2007_Mbeki.txt', '2008_Mbeki.txt', 
+               '2009_post_elections_Zuma.txt', '2009_pre_elections_ Motlanthe.txt', '2010_Zuma.txt', '2011_Zuma.txt', '2012_Zuma.txt', '2013_Zuma.txt', 
+               '2014_post_elections_Zuma.txt', '2014_pre_elections_Zuma.txt', '2015_Zuma.txt', '2016_Zuma.txt', '2017_Zuma.txt', '2018_Ramaphosa.txt', 
+               '2019_post_elections_Ramaphosa.txt', '2019_pre_elections_Ramaphosa.txt', '2020_Ramaphosa.txt', '2021_Ramaphosa.txt', '2022_Ramaphosa.txt',
+               "2023_Ramaphosa.txt")
+
+
+speech <- data.frame(filename = filenames, speech = data, stringsAsFactors = FALSE)
+
+#extract the first line of each speech and store in a date variable
+# speech$date <- sapply(strsplit(speech$speech, "\n"), function(x) x[1])
+# #convert to normal date
+# speech$date <- as.Date.character(speech$date,format = "%d %B %Y")
+
+#extract dates in the entire speech
+date_pattern <- "\\d{1,2} [A-Za-z]+ \\d{4}"
+dates <- regmatches(speech$speech, gregexpr(date_pattern, speech$speech))
+
+extract_first_date <- function(text_vector) {
+  for (text in text_vector) {
+    #look for a dat pattern
+    matches <- regmatches(text, gregexpr(date_pattern, text))
+    #ensures that at least one date pattern was found in the text.
+    if (length(matches) > 0 && length(matches[[1]]) > 0) {
+      return(matches[[1]][1])
+    }
+  }
+  return(NA)
+}
+
+# Apply the function to extract the first date from each vector in the list
+first_dates <- lapply(dates, extract_first_date)
+
+#assign date to our data
+speech$date <- as.Date.character(first_dates,format = "%d %B %Y")
+
+#2. Data preprocessing: 
+# Tokenization,Text cleaning,
+# Lemmatization or stemming: Reducing words to their base form.
+# Handling missing data (if any).
+# Encoding categorical variables (e.g., president names).
+
+#Extract information about the source of speech from the filename
+
+speech <- speech %>%
+  mutate(president=str_remove_all(str_extract(filename, "[dA-Z].*\\."), "\\."))
+
+#check unique president name
+check <- unique(speech$president)
+
+#number of speeches per president
+pres_speech <- speech %>% group_by(president) %>% summarise(speech=n())
+
+
+```
+
+The SONA data used in this project comprises a total of 36 text files, each representing speeches delivered by six different presidents during the period from 1994 to 2023. The dataset includes `r pres_speech[1,2]` speeches from Nelson Mandela, `r pres_speech[2,2]` from Mbeki, `r pres_speech[3,2]` from Motlanthe, `r pres_speech[3,2]` from Ramaphosa, `r pres_speech[5,2]` from Zuma, and `r pres_speech[6,2]` from de Klerk. The analysis of sentiment and topics in the SONA data serves the purpose of uncovering the evolving subjects of discussion in speeches over time and the emotional tone expressed by each president while delivering their speeches.
+
+# Data Preparation
+
+```{r , echo=FALSE}
+
+#extract each unique sentence from the speech
+final_data <- speech %>%
+  mutate(president=str_remove_all(str_extract(filename, "[dA-Z].*\\."), "\\.")) %>% 
+  rowwise() %>%
+  mutate(
+    sentences = list(strsplit(speech, "\n\n")[[1]][-(1:2)])
+  ) %>%
+  select(date,president,sentences) %>%
+  unnest(sentences)
+
+#make president a factor, create sentence count variale
+final_data$ID <- row.names(final_data)
+final_data <- final_data %>% relocate(ID,.before = sentences) %>% 
+  mutate(president=as.factor(president),
+         ID=as.numeric(ID))
+
+#number of sentences per president
+sentence_by_president <-t(as.data.frame((table(final_data$president))))
+
+
+```
+
+The first step in data preparation encompassed the extraction first date detected from each speech, which denotes the date the speech was delivered. This date information was stored in a designated date variable, facilitating subsequent sentiment and topic trend analysis over time. The second line of each speech, typically containing the welcome address, was omitted.
+
+Following this, the speeches were further processed by segmenting them into individual sentences. Each sentence was then associated with the respective president, enabling us to perform a trend analysis of speeches delivered by each president over time. As a result, the finalized dataset comprises a total of `r nrow(final_data)` sentences. President Zuma rendered most of the sentences, accounting for `r round(as.numeric(sentence_by_president[2,6])*100/nrow(final_data))`% of all sentences in the database, followed by `r round(as.numeric(sentence_by_president[2,5])*100/nrow(final_data))`% from President Ramaphosa. President Motlanthe and President De Klerk had the least sentence, accounting only for only `r round(as.numeric(sentence_by_president[2,4])*100/nrow(final_data))`% and `r round(as.numeric(sentence_by_president[2,1])*100/nrow(final_data))`% of all sentences, respectively.
+
+The next step of data preparation involved the conversion of sentences through methods such as tokenization and removing stop words in order to render the data more suitable for analysis. This process aims to enhance the quality and structure of the textual data for further analysis. To preprocess the text the data was converted into a tibble first them pre-processed using the **tidytext** package.
+
+------------------------------------------------------------------------
+
+```{r ,echo=FALSE, message=FALSE,warning=FALSE}
+
+#load dataframe of stop words
+data(stop_words) 
+
+dt <- tibble(final_data) %>% 
+  unnest_tokens(word,input=sentences) %>% #tokenize and store a single word per row
+  anti_join(stop_words) %>%  #remove sto words 
+  filter(str_detect(word, '[A-Za-z]')) %>%  # words that contain no word characters, like numbers
+  filter(!str_detect(word, "[0-9]")) #remove words that contain numerics
+  
+  
+ 
+kable(str(dt))
+```
+
+------------------------------------------------------------------------
+
+The resulting tibble contains `r nrow(dt)` words and 4 variables.
+
+## Sentiment analysis
+
+The words are process further to extract sentiments or emotions that are associated with the words using sentiment lexicons. These lexicons enable users to classify words according to whether they express positive or negative sentiment. For this analysis, the **tidytext** package was utilized, which incorporates a collection of four pre-existing sentiment dictionaries. However for this research the dictionary used is **bing, t**he lexicon lables words as either **positive** or **negative.** Table 1 shows that the word **flawed** is associated with a negative sentiment, while the word **flexible** is associated with a positive sentiment.
+
+------------------------------------------------------------------------
+
+```{r, echo=FALSE, message=FALSE}
+
+set.seed(5)
+bing <- get_sentiments('bing') 
+
+kable(bing[c(2426,2432,2440,2443),],caption = "Table 1: Example of the information stored in the bing dataset",
+      row.names = FALSE)
+
+dt_sentiment <- dt %>% 
+  left_join(bing) %>%                              #add sentiments (pos or neg)
+  select(word, sentiment, everything()) %>% 
+   mutate(word = wordStem(word))   #stem words
+
+#cssign neutral sentiment for entires that are is.na
+dt_sentiment %<>% mutate(sentiment = ifelse(is.na(sentiment), 'neutral', sentiment))
+
+```
+
+------------------------------------------------------------------------
+
+The sentiments linked to the words in our tibble were first attributed, and subsequently, the words underwent **stemming**. Table 2 indicates that, as per the Bing lexicon, the term "**pride**" elicits favorable emotions, while the term "**dead**" elicits unfavorable emotions.
+
+```{r,echo=FALSE}
+
+kable(dt_sentiment[c(13,58,64,74),],
+      row.names = FALSE,
+      caption = "Table 2: Example of sentiment assigned to the words spoken at a SONA")
+
+```
+
+------------------------------------------------------------------------
+
+### **Exploring the common most positive and negative words used by the presidents**
+
+Figure 1 shows that the leading negative word spoke at SONA is ***crime*** and the leading positive word spoken at SONA is ***improv***, this is stemmed from the word **improvement** or **improve**
+
+```{r, echo=FALSE, fig.cap="Figure 1: Top 10 most common positive and negative words said by presidents during SONA",message=FALSE,warning=FALSE}
+
+require(gridExtra)#plot two graphs in one window
+
+p1 <- dt_sentiment %>%
+  filter(sentiment == 'negative') %>%
+  count(word) %>%
+  arrange(desc(n)) %>%
+  filter(rank(desc(n)) <= 10) %>% ggplot(aes(reorder(word,n),n)) + geom_col(fill="red") + coord_flip() + xlab('Negative')
+
+p2 <- dt_sentiment %>%
+  filter(sentiment == 'positive') %>%
+  count(word) %>%
+  arrange(desc(n)) %>%
+  filter(rank(desc(n)) <= 10) %>% ggplot(aes(reorder(word,n),n)) + geom_col(fill="green") + coord_flip() + xlab('Positive')
+
+grid.arrange(p1, p2, ncol=2)
+```
+
+### Exploring the change in sentiment over time
+
+In our analysis of the changes in sentiment over time, we observed (as seen in Figure 2) that the frequency of positive sentiment expressed in State of the Nation Addresses (SONAs) has remained relatively consistent over the years, from 1994 to 2009. However, there was a slight uptick in positive sentiments in 1994 May by 134 basis points. This is the period when Mandela addressed the nation post 1994 elections. A further uptick in positive sentiments was observed in 1995. This was a period marking a turning point in South African history, as they were the first democratic elections in the country. Nelson Mandela's inauguration as President of South Africa was a momentous event, signifying the end of apartheid and the beginning of a new era of democracy. The positivity in his speech likely reflected the optimism and hope associated with this historic transition.
+
+Conversely, the portrayal of negative sentiment, relative to the total words spoken, exhibited a distinct pattern. In the inaugural SONA of 1994, a notably elevated level of negative sentiment was evident. Subsequently, there was a substantial and consistent decline, spanning nearly two decades until 2015, marking a total decrease of negative sentiment by approximately 596 basis points, as seen in Figure 2. However, commencing from 2016, a notable reversal in this trend becomes apparent. This particular shift aligns with the conclusion of the Zuma era. During this period, the political and social landscape was evolving. This period was marked by political controversies, allegations of corruption, and challenges in governance. The Negative sentiment in SONAs during this time could reflect public concerns and criticisms related to these issues.
+
+Negative sentiments has remained on an upward trajectory since 2015. However, There's been a slight increase in positive tone during SONA since 2018, an uptick of 539 basis point since 2017. This coincides with the Ramaphosa era. His presidency marked a transition to a new leadership characterized by promises of good governance, transparency, and a commitment to addressing the country's challenges. These promises and a fresh start under new leadership would naturally generate positive sentiment.
+
+While positive sentiment in SONAsremains notably higher than during the Zuma era, hovering above 6%, there has been a marginal decrease in the optimistic tone in President Ramaphosa's recent addresses. Several factors might contribute to this decline in positive sentiment as South Africa continues to grapple with significant problems such as unemployment. The ongoing existence of these challenges may contribute to a more tempered positive sentiment, corruption, an economic downturn and the on-going power outages. All these issues contribute to a dampened positive sentiment.
+
+```{r time, echo=FALSE,message=FALSE,warning=FALSE,fig.cap="Figure 2: Analyzing the Shift in the Ratio of Positive and Negative Sentiment Frequencies Over the Years Relative to the Total Words Spoken during SONA",fig.width=8, fig.height=4}
+
+#extract year component
+# dt_sentiment$year <- format(ymd(dt_sentiment$date), "%Y-%m")
+# dt_sentiment$year <- as.Date(dt_sentiment$year, format = "%Y-%m")
+
+# Examine the proportion of positive or negative words spoken as a proportion of all words spoken in that year
+time_summary <- dt_sentiment %>% mutate(year=format(dt_sentiment$date, "%Y"),
+                                        month=format(dt_sentiment$date, "%m"),
+                                        year_month=paste(year,"-",month)) %>% 
+  group_by(year,month,year_month, sentiment) %>%  #count per sentiment per year
+  summarise(count = n()) %>% 
+  group_by(year_month) %>% 
+  #prop of sentiment per total words in that year-month
+  mutate(freq = round((count / sum(count)) * 100, 2)) %>% 
+  ungroup() 
+# %>%
+#   arrange(year)
+
+# Plot just positive and negative sentiment
+time_summary %>% filter(sentiment != 'neutral') %>%
+  ggplot(aes(x = year_month, y = freq, colour = sentiment, group = sentiment)) +
+  geom_line() + 
+  geom_smooth(aes(colour = sentiment))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + 
+  xlab("Year-month")+
+  ylab("proportion (%)")
+  # + scale_x_continuous(breaks = unique(time_summary$year_month))  #show all years
+ # + scale_y_continuous(limits = c(0, 7))
+  
+```
+
+# Topic Analysis: **Latent Dirichlet allocation (LDA)**
+
+Latent Dirichlet Allocation (LDA) is a probabilistic model used for topic modeling in text data. It is based on the concept of hidden variables, which are unobserved variables that help uncover patterns in the data. It assumes that each document is a mix of a few secret topics, and it figures out these topics by looking at the words in the documents. The output includes a list of topics, what words belong to each topic, and how much of each topic is in each document. LDA creates collections of topic-word distributions. Each topic is linked to a probability distribution across words in the entire corpus. These distributions illustrate the words that are most inclined to be linked with each respective topic
+
+Fitting Latent Dirichlet Allocation (LDA) involves several steps, from preparing your text data to selecting appropriate parameters for the LDA model. The first step entailed converting the data into a corpus object by specifying the column in the data that contains "text", this column is "word" in our case. Fortunately, the data was already pre-process for the purpose Sentiment analysis and no further procesing was required. There are words that were removed from the corpus object, these are words that add no value to the topic analysis such as "time","nation","honour","memori","son","daughter", and removing other common words to allow for an easy of extracting/isolating important themes.
+
+The corpus object was then converted into a Document Term Matrix using the **quanteda** package. The **topicmodel** package was used to fit the LDA topic model.
+
+A speech usually tackles a number of issues/topics. Therefore we need to set a relatively high k value that will allow us to capture more specific topics. The main topical issues during SONA are mainly the economic policy and development, security and law enforcement, social welfare and poverty alleviation, healthcare, and many other issues. As a result, the k parameter in the model is set to 8 as a start
+
+The resulting model is as seen below:
+
+------------------------------------------------------------------------
+
+```{r, echo=FALSE}
+
+#extract just a select variables
+topic_dt <- dt_sentiment %>% select(word,ID)
+
+#exclude words that refere to the country
+exclude_words <- c("time","nation","honour","memori","son","daughter",     
+   "mother")
+
+topic_dt %<>% filter(!word %in% exclude_words)
+
+#convert to corpus then to Document Term  Matrix
+fulltext = corpus(topic_dt,text_field = "word")
+toks <- tokens(fulltext)
+toks <- dfm(toks)                 ## structure tokens as Document Term  Matrix
+
+#estimate the parameters of topic model using LDA
+SONA_topic <- LDA(toks, k = 8, control = list(seed = 5))
+kable(str(SONA_topic))
+```
+
+------------------------------------------------------------------------
+
+From the results of the model, our focus is on extracting the word-topic probabilities, which are represented by the exponent of beta values for each word. We can then delve into the analysis to identify the top N words per topic, specifically those with the highest probability scores within each topic.
+
+```{r, echo=FALSE, fig.cap="LDA Topic Model Featuring 8 Prominent Topics and the Top 10 Words with the Highest Probability"}
+
+# require(gridExtra)
+
+#extracting the Betas
+words <- as.character(SONA_topic@terms)
+topic1 <- SONA_topic@beta[1,]
+topic2 <- SONA_topic@beta[2,]
+topic3 <- SONA_topic@beta[3,]
+topic4 <- SONA_topic@beta[4,]
+topic5 <- SONA_topic@beta[5,]
+topic6 <- SONA_topic@beta[6,]
+topic7 <- SONA_topic@beta[7,]
+topic8 <- SONA_topic@beta[8,]
+topics_probs <- tibble(words = words, topic1 = topic1, topic2 = topic2,
+                         topic3 = topic3,
+                         topic4 = topic4,
+                       topic5 = topic5,
+                       topic6 = topic6,
+                       topic7 = topic7,
+                      topic8 = topic8
+                       )
+
+#convert betas to probabilities by taking the exponent of betas
+topics_probs%<>% 
+  pivot_longer(c(topic1, topic2,topic3,topic4,topic5,
+                       topic6,
+                       topic7,
+                      topic8
+                 ), names_to = 'topic', values_to = 'beta') %>%
+  mutate(beta = exp(beta)) 
+
+
+
+
+#extract the top 10 topics per topic
+
+p1 <- topics_probs %>%filter(!words %in% exclude_words) %>% 
+   group_by(topic) %>%
+  arrange(topic, desc(beta)) %>%
+  top_n(10, beta) %>%
+  ungroup() 
+  
+p1%>%arrange(topic, desc(beta)) %>%
+  mutate(words = reorder(words, beta)) %>%
+  ggplot(aes(words, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = 'free') +
+  coord_flip()
+
+
+
+```
+
+A deeper analysis of the key features/words in each topic shows that the main theme in **topic 3** is investments, business news. The theme for **topic 8** seems to be local infrastructure development, social responsibilities, ans service delivery. **Topic 1** focuses of employment creation and job security, **topic 2** focuses on the business landscape, investments. **Topic 5** seems to focus around the theme of policy reform and empowerment of the marginalized. However, it is clear that most words are common to all 8 topics.
+
+## Reducing K
+
+The result of the LDA model allows us to better zero in on the main themes of the SONA. Topic 3 appears to be centred around investments/topic, topic 2 around infrastructural development and service delivery and Top 1 is centered around economic policy, develpment, and overall governance. The overlap in the top 10 words between the 3 topics is less than when k was larger. There are now more distinct words in each topic.
+
+```{r ,echo=FALSE, fig.cap="LDA Topic Model Featuring 3 Prominent Topics and the Top 10 Words with the Highest Probability"}
+
+#reducing k to 3
+#estimate the parameters of topic model using LDA
+SONA_topic <- LDA(toks, k = 3, control = list(seed = 5))
+
+
+#extracting the Betas
+words <- as.character(SONA_topic@terms)
+topic1 <- SONA_topic@beta[1,]
+topic2 <- SONA_topic@beta[2,]
+topic3 <- SONA_topic@beta[3,]
+
+topics_probs <- tibble(words = words, topic1 = topic1, topic2 = topic2,
+                         topic3 = topic3,
+                       SONA_topic@beta[3,]
+
+                       )
+
+#convert betas to probabilities by taking the exponent of betas
+topics_probs%<>% 
+  pivot_longer(c(topic1, topic2,topic3
+                 ), names_to = 'topic', values_to = 'beta') %>%
+  mutate(beta = exp(beta)) 
+
+
+
+
+#extract the top 10 topics per topic
+
+p1 <- topics_probs %>%filter(!words %in% exclude_words) %>% 
+   group_by(topic) %>%
+  arrange(topic, desc(beta)) %>%
+  top_n(10, beta) %>%
+  ungroup() 
+  
+p1%>%arrange(topic, desc(beta)) %>%
+  mutate(words = reorder(words, beta)) %>%
+  ggplot(aes(words, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = 'free') +
+  coord_flip()
+
+```
+
+```{}
+```
+
+```         
+
+```
+
+# large language model such as ChatGPT
+
+I used chat GPT to help me understand what the purpose of the LDA model , how it works and how to interpret it's output. The prompt I used was "explain to me LDA topic modelling in latent terms. how it works and what is the output generated". I used it to also understand what is an ideal k to use for the purpose of evaluating SONA data, followed by the prompt "what are the main topical issues in a president's address, what should be k for a speech mining LDA". Based on the topical issues AI suggested I used two values of k, 3 and 8 and assessed the model's ability to identify hidden trends.
+
+I also used chat GPT to refine or debug my code. For example when I was plotting the graphs, I had errors and I asked it to debug my error, and I passed it my original code and prompted it to refine my code and tell me what it had fixed.
+
+When I was attempting to convert my tibble to a a dfm. I could not get the method to work with the tidytext() package. So I passed it the tidytext code and asked it to return an alternative method. It suggested I use quanteda, but the code still did not work, I fixed the code by coverting my tibble into a corpus using quanteda and to dfm.
+
+I also used chat GPT to help me extract the dates contained in the text file. For the purpose of sentiment analysis I needed to use the date each speech was rendered. The challenge is that this date is not always in the first sentence of the text file, sometimes it is located in other places within the first sentence. I used the prompt: *"my data contains text data , the first line contains the date , but sometimes it is located at the beginning or end of the string, how do you search for date here: State of the Nation Address by President Cyril Ramaphosa, Cape Town City Hall, 9 February 2023"* to help the machine conceptualize my issue. It returned a code. However the code it returned showed all the dates mentioned in each speech, some speech_IDs had more than one date, but I just needed the first date. I therefore refined the solution by extraction only the first item in each list.
+
+I also used chat GPT to help me refine my thoughts or sentences. For example, I need restructing a caption for one of my figures, it did not seem to be descriptive or grammatically correct, i passed the prompt "refine my caption : Figure 3: LDA topic model with 8 salient topics and the top 10 words with the highest probability"
+
+I used Chat GPT to assist me in plotting multiple graphs in one window. The method **par(mfrow = c(2, 2))** would not seem to work, so I asked for an alternative method and it suggested using the **gridExtra** library.
+
+# Plagiarism declaration
+
+I, Bahle Motshegoa, a student at the University of Cape Town in the Department of Statistical Sciences, with student number MTSNOB004, declare that:
+
+1\. I know that plagiarism is wrong. Plagiarism is to use another's work and pretend that it is one's own.
+
+2\. I have used a generally accepted citation and referencing style. Each contri- bution to, and quotation in, this report from the work(s) of other people has been attributed, and has been cited and referenced.
+
+3\. This report is my own work.
+
+4\. I have not allowed, and will not allow, anyone to copy my work with the intention of passing it on as his or her own work.
+
+5\. I acknowledge that copying someone else's assignment or essay, or part of it, is wrong, and declare that this is my own work.
+
+Signed on October 24, 2023:
+
+![Bahle Motshegoa](digital%20signature.jpg){fig-align="left" width="28"}
